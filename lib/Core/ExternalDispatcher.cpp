@@ -257,7 +257,11 @@ Function *ExternalDispatcher::createDispatcher(Function *target, Instruction *in
     LLVM_TYPE_Q Type *argTy = (i < FTy->getNumParams() ? FTy->getParamType(i) : 
                                (*ai)->getType());
     Instruction *argI64p = 
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 7)
+      GetElementPtrInst::Create(nullptr, argI64s,
+#else
       GetElementPtrInst::Create(argI64s, 
+#endif
                                 ConstantInt::get(Type::getInt32Ty(ctx), idx),
                                 "", dBB);
 

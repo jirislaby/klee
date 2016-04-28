@@ -274,13 +274,21 @@ static bool linkBCA(object::Archive* archive, Module* composite, std::string& er
         Module *Result = 0;
         // FIXME: Maybe load bitcode file lazily? Then if we need to link, materialise the module
 #if LLVM_VERSION_CODE >= LLVM_VERSION(3, 5)
-        ErrorOr<Module *> resultErr = parseBitcodeFile(buff.get(),
-	    composite->getContext());
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 7)
+        ErrorOr<std::unique_ptr<Module> > resultErr =
+#else
+        ErrorOr<Module *> resultErr =
+#endif
+	    parseBitcodeFile(buff.get(), composite->getContext());
         ec = resultErr.getError();
         if (ec)
           errorMessage = ec.message();
         else
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 7)
+          Result = resultErr->release();
+#else
           Result = resultErr.get();
+#endif
 #else
         Result = ParseBitcodeFile(buff.get(), composite->getContext(),
 	    &errorMessage);
@@ -439,7 +447,12 @@ Module *klee::linkWithLibrary(Module *module,
   if (magic == sys::fs::file_magic::bitcode) {
     Module *Result = 0;
 #if LLVM_VERSION_CODE >= LLVM_VERSION(3, 5)
-    ErrorOr<Module *> ResultErr = parseBitcodeFile(Buffer, Context);
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 7)
+    ErrorOr<std::unique_ptr<Module> > ResultErr =
+#else
+    ErrorOr<Module *> ResultErr =
+#endif
+	parseBitcodeFile(Buffer, Context);
     if ((ec = ResultErr.getError())) {
       ErrorMessage = ec.message();
 #else
@@ -464,7 +477,10 @@ Module *klee::linkWithLibrary(Module *module,
           ErrorMessage.c_str());
     }
 
+// unique_ptr owns the Module, we don't have to delete it
+#if LLVM_VERSION_CODE < LLVM_VERSION(3, 7)
     delete Result;
+#endif
 
   } else if (magic == sys::fs::file_magic::archive) {
 #if LLVM_VERSION_CODE >= LLVM_VERSION(3, 6)
