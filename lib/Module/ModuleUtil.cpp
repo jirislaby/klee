@@ -212,7 +212,11 @@ static bool linkBCA(object::Archive* archive, Module* composite, std::string& er
 
   KLEE_DEBUG_WITH_TYPE("klee_linker", dbgs() << "Loading modules\n");
   // Load all bitcode files in to memory so we can examine their symbols
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 5)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+  Error Err;
+  for (object::Archive::child_iterator AI = archive->child_begin(Err),
+       AE = archive->child_end(); AI != AE; ++AI)
+#elif LLVM_VERSION_CODE >= LLVM_VERSION(3, 5)
   for (object::Archive::child_iterator AI = archive->child_begin(),
        AE = archive->child_end(); AI != AE; ++AI)
 #else
@@ -252,15 +256,20 @@ static bool linkBCA(object::Archive* archive, Module* composite, std::string& er
       return false;
     }
 
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 5)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+    Expected<std::unique_ptr<llvm::object::Binary> > child =
+      childErr->getAsBinary();
+    if (!child) {
+#elif LLVM_VERSION_CODE >= LLVM_VERSION(3, 5)
     ErrorOr<std::unique_ptr<llvm::object::Binary> > child =
       childErr->getAsBinary();
     ec = child.getError();
+    if (ec) {
 #else
     OwningPtr<object::Binary> child;
     ec = AI->getAsBinary(child);
-#endif
     if (ec) {
+#endif
       // If we can't open as a binary object file its hopefully a bitcode file
 #if LLVM_VERSION_CODE >= LLVM_VERSION(3, 6)
       ErrorOr<MemoryBufferRef> buff = childErr->getMemoryBufferRef();
@@ -335,6 +344,13 @@ static bool linkBCA(object::Archive* archive, Module* composite, std::string& er
     }
 
   }
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+  if (Err) {
+    SS << "Cannot iterate over archive";
+    SS.flush();
+    return false;
+  }
+#endif
 
   KLEE_DEBUG_WITH_TYPE("klee_linker", dbgs() << "Loaded " << archiveModules.size() << " modules\n");
 
@@ -505,7 +521,12 @@ Module *klee::linkWithLibrary(Module *module,
 #endif
 
   } else if (magic == sys::fs::file_magic::archive) {
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 6)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+    Expected<std::unique_ptr<object::Binary> > arch =
+        object::createBinary(Buffer, &Context);
+    if (!arch)
+      ec = errorToErrorCode(arch.takeError());
+#elif LLVM_VERSION_CODE >= LLVM_VERSION(3, 6)
     ErrorOr<std::unique_ptr<object::Binary> > arch =
         object::createBinary(Buffer, &Context);
     ec = arch.getError();
@@ -575,7 +596,11 @@ Function *klee::getDirectCallTarget(CallSite cs, bool moduleIsFullyLinked) {
     if (Function *f = dyn_cast<Function>(v)) {
       return f;
     } else if (llvm::GlobalAlias *ga = dyn_cast<GlobalAlias>(v)) {
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+      if (moduleIsFullyLinked || !(ga->isInterposable())) {
+#else
       if (moduleIsFullyLinked || !(ga->mayBeOverridden())) {
+#endif
         v = ga->getAliasee();
       } else {
         v = NULL;
