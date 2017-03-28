@@ -260,6 +260,7 @@ static bool linkBCA(object::Archive* archive, Module* composite, std::string& er
     Expected<std::unique_ptr<llvm::object::Binary> > child =
       childErr->getAsBinary();
     if (!child) {
+        consumeError(child.takeError());
 #elif LLVM_VERSION_CODE >= LLVM_VERSION(3, 5)
     ErrorOr<std::unique_ptr<llvm::object::Binary> > child =
       childErr->getAsBinary();
