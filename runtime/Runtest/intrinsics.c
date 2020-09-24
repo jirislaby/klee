@@ -142,7 +142,7 @@ uintptr_t klee_choose(uintptr_t n) {
   uintptr_t x;
   klee_make_symbolic(&x, sizeof x, "klee_choose");
   if(x >= n)
-    report_internal_error("klee_choose failure. max = %ld, got = %ld\n", n, x);
+    report_internal_error("klee_choose failure. max = %zd, got = %zd\n", n, x);
   return x;
 }
 

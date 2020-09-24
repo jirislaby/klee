@@ -22,7 +22,7 @@ namespace klee {
   captures all  states, whereas a Random Path Searcher might only care about
   a subset. The integer part of PTreeNodePtr is a bitmask (a "tag") of which
   Random Path Searchers PTreeNode belongs to. */
-  constexpr int PtrBitCount = 3;
+  constexpr int PtrBitCount = 2;
   using PTreeNodePtr = llvm::PointerIntPair<PTreeNode *, PtrBitCount, uint8_t>;
 
   class PTreeNode {

@@ -2958,7 +2958,7 @@ bool Executor::checkMemoryUsage() {
   // check memory limit
   const auto mallocUsage = util::GetTotalMallocUsage() >> 20U;
   const auto mmapUsage = memory->getUsedDeterministicSize() >> 20U;
-  const auto totalUsage = mallocUsage + mmapUsage;
+  const unsigned long totalUsage = mallocUsage + mmapUsage;
   atMemoryLimit = totalUsage > MaxMemory; // inhibit forking
   if (!atMemoryLimit)
     return true;
@@ -2968,7 +2968,7 @@ bool Executor::checkMemoryUsage() {
     return true;
 
   // just guess at how many to kill
-  const auto numStates = states.size();
+  const unsigned long numStates = states.size();
   auto toKill = std::max(1UL, numStates - numStates * MaxMemory / totalUsage);
   klee_warning("killing %lu states (over memory cap: %luMB)", toKill, totalUsage);
 
